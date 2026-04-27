@@ -1,0 +1,2528 @@
+openapi: 3.0.3
+info:
+  title: MediBook Doctor Appointment API
+  version: 1.0.0
+  description: Comprehensive REST API for doctor appointment booking system with patient
+    management, doctor profiles, appointments, prescriptions, payments, reviews, and
+    notifications.
+paths:
+  /appointments/:
+    get:
+      operationId: appointments_list
+      description: 'List appointments filtered by user role: patients see their own
+        appointments, doctors see appointments with them, admins see all appointments.
+        Includes patient details, doctor details, and prescription information.'
+      summary: List appointments
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      tags:
+      - Appointments
+      security:
+      - jwtAuth: []
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedAppointmentList'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+    post:
+      operationId: appointments_create
+      description: Create a new appointment (patients only). Validates doctor availability
+        for the selected date and time slot. Ensures the time slot is not already
+        booked and falls within doctor availability hours.
+      summary: Book new appointment
+      tags:
+      - Appointments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppointmentCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AppointmentCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AppointmentCreateRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - bearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Appointment'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /appointments/{appointment_id}/prescription/:
+    get:
+      operationId: appointments_prescription_retrieve
+      description: Retrieve prescription for an appointment. Accessible by the doctor
+        who created it and the patient for whom it was prescribed. Returns prescription
+        with diagnosis, instructions, and medicines.
+      summary: Get prescription
+      parameters:
+      - in: path
+        name: appointment_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Appointments
+      security:
+      - jwtAuth: []
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Prescription'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+    post:
+      operationId: appointments_prescription_create
+      description: Doctor creates or updates prescription for an appointment. Automatically
+        marks appointment as completed. If prescription already exists, it will be
+        updated with new data.
+      summary: Create or update prescription
+      parameters:
+      - in: path
+        name: appointment_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Appointments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PrescriptionCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PrescriptionCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PrescriptionCreateRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - bearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Prescription'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /appointments/{id}/:
+    get:
+      operationId: appointments_retrieve
+      description: Retrieve detailed information about a specific appointment including
+        patient, doctor, prescription, and status. Access filtered by user role.
+      summary: Get appointment details
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Appointments
+      security:
+      - jwtAuth: []
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Appointment'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+    put:
+      operationId: appointments_update
+      description: Update appointment status and notes. Doctors can update status
+        to confirmed or completed. Patients can cancel appointments.
+      summary: Update appointment status
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Appointments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppointmentStatusRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AppointmentStatusRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AppointmentStatusRequest'
+      security:
+      - jwtAuth: []
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Appointment'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+    patch:
+      operationId: appointments_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - appointments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedAppointmentStatusRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedAppointmentStatusRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedAppointmentStatusRequest'
+      security:
+      - jwtAuth: []
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppointmentStatus'
+          description: ''
+    delete:
+      operationId: appointments_destroy
+      description: Cancel an appointment. Patients can cancel their own appointments.
+        Doctors and admins can cancel any appointment.
+      summary: Cancel appointment
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Appointments
+      security:
+      - jwtAuth: []
+      - bearerAuth: []
+      responses:
+        '204':
+          description: No response body
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /appointments/my-prescriptions/:
+    get:
+      operationId: appointments_my_prescriptions_retrieve
+      description: Patient views all their prescriptions across completed appointments.
+        Returns prescriptions with appointment date, doctor name, specialization,
+        diagnosis, instructions, and medicines.
+      summary: Get patient prescriptions
+      tags:
+      - Appointments
+      security:
+      - jwtAuth: []
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                    appointment:
+                      type: integer
+                    diagnosis:
+                      type: string
+                    instructions:
+                      type: string
+                    medicines:
+                      type: array
+                    appointment_date:
+                      type: string
+                      format: date
+                    doctor_name:
+                      type: string
+                    specialization:
+                      type: string
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /appointments/patient-history/{patient_id}/:
+    get:
+      operationId: appointments_patient_history_retrieve
+      description: Doctor or admin views full appointment history of a specific patient.
+        Returns all appointments with prescriptions, ordered by date. Includes follow-up
+        indicators and patient information.
+      summary: Get patient history
+      parameters:
+      - in: path
+        name: patient_id
+        schema:
+          type: integer
+        description: Patient user ID
+        required: true
+      tags:
+      - Appointments
+      security:
+      - jwtAuth: []
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  patient:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                      name:
+                        type: string
+                      email:
+                        type: string
+                      phone:
+                        type: string
+                  total_visits:
+                    type: integer
+                  history:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                        appointment_date:
+                          type: string
+                          format: date
+                        appointment_time:
+                          type: string
+                          format: time
+                        status:
+                          type: string
+                        reason:
+                          type: string
+                        notes:
+                          type: string
+                        doctor_name:
+                          type: string
+                        specialization:
+                          type: string
+                        is_followup:
+                          type: boolean
+                        prescription:
+                          type: object
+                          nullable: true
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /auth/admin/create-doctor/:
+    post:
+      operationId: auth_admin_create_doctor_create
+      description: Admin-only endpoint to create a new user with doctor role and associated
+        doctor profile. Creates both the user account and doctor profile in a single
+        operation.
+      summary: Create doctor account
+      tags:
+      - Admin
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                  description: Unique username for the doctor
+                email:
+                  type: string
+                  format: email
+                  description: Doctor email address
+                password:
+                  type: string
+                  description: Password for the account
+                first_name:
+                  type: string
+                  description: Doctor first name
+                last_name:
+                  type: string
+                  description: Doctor last name
+                phone:
+                  type: string
+                  description: Contact phone number
+                specialization:
+                  type: string
+                  description: Medical specialization (e.g., Cardiology, Dermatology)
+                qualification:
+                  type: string
+                  description: Medical qualifications and degrees
+                experience_years:
+                  type: integer
+                  description: Years of medical experience
+                consultation_fee:
+                  type: number
+                  format: decimal
+                  description: Consultation fee amount
+                bio:
+                  type: string
+                  description: Doctor biography and additional information
+              required:
+              - username
+              - email
+              - password
+            examples:
+              CreateDoctor:
+                value:
+                  username: dr_smith
+                  email: dr.smith@hospital.com
+                  password: SecurePass123!
+                  first_name: John
+                  last_name: Smith
+                  phone: '+1234567890'
+                  specialization: Cardiology
+                  qualification: MBBS, MD Cardiology
+                  experience_years: 10
+                  consultation_fee: 150.0
+                  bio: Experienced cardiologist specializing in heart disease prevention
+                    and treatment.
+                summary: Create Doctor
+      security:
+      - jwtAuth: []
+      - bearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Doctor created successfully.
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /auth/admin/users/:
+    get:
+      operationId: auth_admin_users_list
+      description: Admin-only endpoint to retrieve a list of all users in the system.
+        Supports optional filtering by user role (patient, doctor, admin). Results
+        are ordered by date joined (newest first).
+      summary: List all users
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - in: query
+        name: role
+        schema:
+          type: string
+          enum:
+          - admin
+          - doctor
+          - patient
+        description: 'Filter users by role: patient, doctor, or admin'
+      tags:
+      - Admin
+      security:
+      - jwtAuth: []
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedUserList'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /auth/admin/users/{id}/:
+    get:
+      operationId: auth_admin_users_retrieve
+      description: Admin-only endpoint to retrieve detailed information about a specific
+        user by ID.
+      summary: Get user details
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Admin
+      security:
+      - jwtAuth: []
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+    put:
+      operationId: auth_admin_users_update
+      description: Admin-only endpoint to update all fields of a specific user. All
+        fields must be provided.
+      summary: Update user
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Admin
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/UserRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UserRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+    patch:
+      operationId: auth_admin_users_partial_update
+      description: Admin-only endpoint to partially update a specific user. Only provided
+        fields will be updated.
+      summary: Partially update user
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Admin
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedUserRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedUserRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedUserRequest'
+      security:
+      - jwtAuth: []
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+    delete:
+      operationId: auth_admin_users_destroy
+      description: Admin-only endpoint to delete a specific user. Admins cannot delete
+        themselves.
+      summary: Delete user
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Admin
+      security:
+      - jwtAuth: []
+      - bearerAuth: []
+      responses:
+        '204':
+          description: No response body
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /auth/login/:
+    post:
+      operationId: auth_login_create
+      description: |-
+        Takes a set of user credentials and returns an access and refresh JSON web
+        token pair to prove the authentication of those credentials.
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenObtainPairRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenObtainPairRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenObtainPairRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenObtainPair'
+          description: ''
+  /auth/profile/:
+    get:
+      operationId: auth_profile_retrieve
+      description: Retrieve authenticated user profile information including personal
+        details, role, and contact information.
+      summary: Get current user profile
+      tags:
+      - Authentication
+      security:
+      - jwtAuth: []
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+    put:
+      operationId: auth_profile_update
+      description: Update authenticated user profile information. All fields must
+        be provided.
+      summary: Update user profile
+      tags:
+      - Authentication
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/UserRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UserRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+    patch:
+      operationId: auth_profile_partial_update
+      description: Partially update authenticated user profile information. Only provided
+        fields will be updated.
+      summary: Partially update user profile
+      tags:
+      - Authentication
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedUserRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedUserRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedUserRequest'
+      security:
+      - jwtAuth: []
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /auth/register/:
+    post:
+      operationId: auth_register_create
+      description: Create a new user account with role (patient, doctor, or admin).
+        Doctors should be created via admin endpoint.
+      summary: Register new user
+      tags:
+      - Authentication
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+            examples:
+              PatientRegistration:
+                value:
+                  username: john_doe
+                  email: john@example.com
+                  password: SecurePass123!
+                  password2: SecurePass123!
+                  first_name: John
+                  last_name: Doe
+                  role: patient
+                  phone: '+1234567890'
+                summary: Patient Registration
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - bearerAuth: []
+      - {}
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /auth/token/refresh/:
+    post:
+      operationId: auth_token_refresh_create
+      description: |-
+        Takes a refresh type JSON web token and returns an access type JSON web
+        token if the refresh token is valid.
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenRefreshRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenRefreshRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenRefreshRequest'
+        required: true
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenRefresh'
+          description: ''
+  /doctors/:
+    get:
+      operationId: doctors_list
+      description: Retrieve list of doctors with optional filtering by specialization
+        and search by name. Results can be ordered by consultation fee or experience
+        years.
+      summary: List all available doctors
+      parameters:
+      - in: query
+        name: is_available
+        schema:
+          type: boolean
+      - in: query
+        name: ordering
+        schema:
+          type: string
+        description: 'Order by field: consultation_fee, -consultation_fee, experience_years,
+          -experience_years (prefix with - for descending)'
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - in: query
+        name: search
+        schema:
+          type: string
+        description: Search by doctor first name, last name, or specialization
+      - in: query
+        name: specialization
+        schema:
+          type: string
+        description: Filter by doctor specialization (e.g., Cardiology, Dermatology,
+          Pediatrics)
+      tags:
+      - Doctors
+      security:
+      - jwtAuth: []
+      - bearerAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedDoctorList'
+          description: ''
+  /doctors/{doctor_id}/slots/:
+    get:
+      operationId: doctors_slots_retrieve
+      description: Retrieve available 30-minute time slots for a specific doctor on
+        a given date. Returns slots within doctor availability windows, marking which
+        are already booked. Accessible to all users.
+      summary: Get available time slots for doctor
+      parameters:
+      - in: query
+        name: date
+        schema:
+          type: string
+          format: date
+        description: Date in YYYY-MM-DD format to check availability
+        required: true
+      - in: path
+        name: doctor_id
+        schema:
+          type: integer
+        description: Doctor ID
+        required: true
+      tags:
+      - Doctors
+      security:
+      - jwtAuth: []
+      - bearerAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  slots:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        time:
+                          type: string
+                          example: 09:00
+                        available:
+                          type: boolean
+                          example: true
+                  message:
+                    type: string
+                    example: Doctor not available on this day.
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /doctors/{id}/:
+    get:
+      operationId: doctors_retrieve
+      description: Retrieve detailed information about a specific doctor including
+        profile, specialization, availability schedule, and consultation fee.
+      summary: Get doctor details
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Doctors
+      security:
+      - jwtAuth: []
+      - bearerAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Doctor'
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /doctors/availability/:
+    get:
+      operationId: doctors_availability_list
+      description: Doctor retrieves their own weekly availability schedule. Returns
+        all availability slots with day, time range, and active status. Requires doctor
+        role authentication.
+      summary: Get doctor availability slots
+      tags:
+      - Doctors
+      security:
+      - jwtAuth: []
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DoctorAvailability'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+    post:
+      operationId: doctors_availability_create
+      description: Doctor creates a new availability slot for a specific day of the
+        week with start and end times. Requires doctor role authentication.
+      summary: Create availability slot
+      tags:
+      - Doctors
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DoctorAvailabilityRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DoctorAvailabilityRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DoctorAvailabilityRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - bearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DoctorAvailability'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /doctors/availability/{id}/:
+    patch:
+      operationId: doctors_availability_partial_update
+      description: Doctor updates an existing availability slot. Can modify day, time
+        range, or active status. Requires doctor role authentication.
+      summary: Update availability slot
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Doctors
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedDoctorAvailabilityRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedDoctorAvailabilityRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedDoctorAvailabilityRequest'
+      security:
+      - jwtAuth: []
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DoctorAvailability'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+    delete:
+      operationId: doctors_availability_destroy
+      description: Doctor deletes an existing availability slot. Requires doctor role
+        authentication.
+      summary: Delete availability slot
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Doctors
+      security:
+      - jwtAuth: []
+      - bearerAuth: []
+      responses:
+        '204':
+          description: No response body
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /doctors/profile/:
+    get:
+      operationId: doctors_profile_retrieve
+      description: Doctor retrieves their own profile information including consultation
+        fee, bio, availability status, and professional details. Requires doctor role
+        authentication.
+      summary: Get doctor own profile
+      tags:
+      - Doctors
+      security:
+      - jwtAuth: []
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Doctor'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+    patch:
+      operationId: doctors_profile_partial_update
+      description: Doctor updates their own profile fields including consultation
+        fee, bio, availability status, specialization, qualification, and experience
+        years. Requires doctor role authentication.
+      summary: Update doctor profile
+      tags:
+      - Doctors
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedDoctorProfileUpdateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedDoctorProfileUpdateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedDoctorProfileUpdateRequest'
+      security:
+      - jwtAuth: []
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Doctor'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /notifications/:
+    get:
+      operationId: notifications_list
+      description: Retrieve list of notifications for the authenticated user, ordered
+        by most recent first.
+      summary: List user notifications
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      tags:
+      - Notifications
+      security:
+      - jwtAuth: []
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedNotificationList'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /payments/:
+    get:
+      operationId: payments_list
+      description: Retrieve list of payments for the authenticated user. Patients
+        see their own payments, doctors see payments for their appointments, admins
+        see all payments.
+      summary: List user payments
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      tags:
+      - Payments
+      security:
+      - jwtAuth: []
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedPaymentList'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /reviews/:
+    get:
+      operationId: reviews_list
+      description: Retrieve list of reviews. Optionally filter by doctor ID using
+        the doctor query parameter.
+      summary: List doctor reviews
+      parameters:
+      - in: query
+        name: doctor
+        schema:
+          type: integer
+        description: Filter reviews by doctor ID
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      tags:
+      - Reviews
+      security:
+      - jwtAuth: []
+      - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedReviewList'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+    post:
+      operationId: reviews_create
+      description: Create a new review for a doctor. Patients can only review doctors
+        they have had appointments with. One review per doctor per patient.
+      summary: Create doctor review
+      tags:
+      - Reviews
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReviewRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ReviewRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ReviewRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - bearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Review'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+components:
+  schemas:
+    Appointment:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        patient:
+          allOf:
+          - $ref: '#/components/schemas/User'
+          readOnly: true
+        doctor:
+          type: integer
+        doctor_details:
+          allOf:
+          - $ref: '#/components/schemas/Doctor'
+          readOnly: true
+        appointment_date:
+          type: string
+          format: date
+        appointment_time:
+          type: string
+          format: time
+        status:
+          $ref: '#/components/schemas/Status9d8Enum'
+        reason:
+          type: string
+        notes:
+          type: string
+        prescription:
+          allOf:
+          - $ref: '#/components/schemas/Prescription'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - appointment_date
+      - appointment_time
+      - doctor
+      - reason
+    AppointmentCreateRequest:
+      type: object
+      properties:
+        doctor:
+          type: integer
+          description: ID of the doctor to book appointment with (must be available)
+        appointment_date:
+          type: string
+          format: date
+          description: Appointment date in YYYY-MM-DD format
+        appointment_time:
+          type: string
+          format: time
+          description: Appointment time in HH:MM format (30-minute slots, e.g., 09:00,
+            09:30)
+        reason:
+          type: string
+          minLength: 1
+          description: Reason for appointment or symptoms description
+          maxLength: 500
+      required:
+      - appointment_date
+      - appointment_time
+      - doctor
+      - reason
+    AppointmentStatus:
+      type: object
+      properties:
+        status:
+          $ref: '#/components/schemas/Status9d8Enum'
+        notes:
+          type: string
+    AppointmentStatusRequest:
+      type: object
+      properties:
+        status:
+          $ref: '#/components/schemas/Status9d8Enum'
+        notes:
+          type: string
+    Doctor:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        user:
+          allOf:
+          - $ref: '#/components/schemas/User'
+          readOnly: true
+          description: User account information including name, email, and contact
+            details
+        specialization:
+          type: string
+          description: Medical specialization (e.g., Cardiology, Dermatology, Pediatrics)
+        qualification:
+          type: string
+          description: Medical qualifications and degrees (e.g., MBBS, MD)
+        experience_years:
+          type: integer
+          description: Years of medical practice experience
+        consultation_fee:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          description: Consultation fee amount in local currency
+        bio:
+          type: string
+          description: Doctor biography and additional professional information
+        is_available:
+          type: boolean
+          description: Whether the doctor is currently accepting appointments
+        availability:
+          type: array
+          items:
+            $ref: '#/components/schemas/DoctorAvailability'
+          readOnly: true
+          description: Weekly availability schedule for the doctor
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - bio
+      - consultation_fee
+      - experience_years
+      - is_available
+      - qualification
+      - specialization
+    DoctorAvailability:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        day_of_week:
+          type: integer
+          description: Day of week as integer (0=Monday, 1=Tuesday, ..., 6=Sunday)
+        day_name:
+          type: string
+          readOnly: true
+          description: Human-readable day name (e.g., Monday, Tuesday)
+        start_time:
+          type: string
+          format: time
+          description: Availability start time in HH:MM format (24-hour)
+        end_time:
+          type: string
+          format: time
+          description: Availability end time in HH:MM format (24-hour)
+        is_active:
+          type: boolean
+          default: true
+          description: Whether this availability slot is currently active
+      required:
+      - day_of_week
+      - end_time
+      - start_time
+    DoctorAvailabilityRequest:
+      type: object
+      properties:
+        day_of_week:
+          type: integer
+          description: Day of week as integer (0=Monday, 1=Tuesday, ..., 6=Sunday)
+        start_time:
+          type: string
+          format: time
+          description: Availability start time in HH:MM format (24-hour)
+        end_time:
+          type: string
+          format: time
+          description: Availability end time in HH:MM format (24-hour)
+        is_active:
+          type: boolean
+          default: true
+          description: Whether this availability slot is currently active
+      required:
+      - day_of_week
+      - end_time
+      - start_time
+    FrequencyEnum:
+      enum:
+      - once
+      - twice
+      - thrice
+      - as_needed
+      type: string
+      description: |-
+        * `once` - Once daily
+        * `twice` - Twice daily
+        * `thrice` - Thrice daily
+        * `as_needed` - As needed
+    Medicine:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          description: Name of the medicine or drug
+          maxLength: 200
+        dosage:
+          type: string
+          description: Dosage amount and unit (e.g., 500mg, 10ml)
+          maxLength: 100
+        frequency:
+          allOf:
+          - $ref: '#/components/schemas/FrequencyEnum'
+          description: |-
+            Frequency of medication intake: once, twice, thrice, or as_needed
+
+            * `once` - Once daily
+            * `twice` - Twice daily
+            * `thrice` - Thrice daily
+            * `as_needed` - As needed
+        frequency_display:
+          type: string
+          readOnly: true
+        duration_days:
+          type: integer
+          description: Duration of medication in days
+        timing_notes:
+          type: string
+          description: Additional timing instructions (e.g., after meals, before bed)
+      required:
+      - dosage
+      - duration_days
+      - frequency
+      - name
+    MedicineRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          description: Name of the medicine or drug
+          maxLength: 200
+        dosage:
+          type: string
+          minLength: 1
+          description: Dosage amount and unit (e.g., 500mg, 10ml)
+          maxLength: 100
+        frequency:
+          allOf:
+          - $ref: '#/components/schemas/FrequencyEnum'
+          description: |-
+            Frequency of medication intake: once, twice, thrice, or as_needed
+
+            * `once` - Once daily
+            * `twice` - Twice daily
+            * `thrice` - Thrice daily
+            * `as_needed` - As needed
+        duration_days:
+          type: integer
+          description: Duration of medication in days
+        timing_notes:
+          type: string
+          description: Additional timing instructions (e.g., after meals, before bed)
+      required:
+      - dosage
+      - duration_days
+      - frequency
+      - name
+    Notification:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        user:
+          type: integer
+          readOnly: true
+          description: ID of the user who receives this notification
+        title:
+          type: string
+          description: Notification title or subject
+          maxLength: 200
+        message:
+          type: string
+          description: Notification message content
+        is_read:
+          type: boolean
+          default: false
+          description: Whether the notification has been read by the user
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          description: Timestamp when the notification was created
+      required:
+      - message
+      - title
+    PaginatedAppointmentList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Appointment'
+    PaginatedDoctorList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Doctor'
+    PaginatedNotificationList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Notification'
+    PaginatedPaymentList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Payment'
+    PaginatedReviewList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Review'
+    PaginatedUserList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/User'
+    PatchedAppointmentStatusRequest:
+      type: object
+      properties:
+        status:
+          $ref: '#/components/schemas/Status9d8Enum'
+        notes:
+          type: string
+    PatchedDoctorAvailabilityRequest:
+      type: object
+      properties:
+        day_of_week:
+          type: integer
+          description: Day of week as integer (0=Monday, 1=Tuesday, ..., 6=Sunday)
+        start_time:
+          type: string
+          format: time
+          description: Availability start time in HH:MM format (24-hour)
+        end_time:
+          type: string
+          format: time
+          description: Availability end time in HH:MM format (24-hour)
+        is_active:
+          type: boolean
+          default: true
+          description: Whether this availability slot is currently active
+    PatchedDoctorProfileUpdateRequest:
+      type: object
+      description: Allows doctor to update their own profile fields.
+      properties:
+        consultation_fee:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        bio:
+          type: string
+        is_available:
+          type: boolean
+        specialization:
+          type: string
+          minLength: 1
+          maxLength: 100
+        qualification:
+          type: string
+          minLength: 1
+          maxLength: 200
+        experience_years:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+    PatchedUserRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          minLength: 1
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+          pattern: ^[\w.@+-]+$
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          title: Email address
+          maxLength: 254
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        role:
+          $ref: '#/components/schemas/UserRoleEnum'
+        phone:
+          type: string
+          maxLength: 15
+        date_of_birth:
+          type: string
+          format: date
+          nullable: true
+        address:
+          type: string
+        profile_picture:
+          type: string
+          format: binary
+          nullable: true
+    Payment:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        appointment:
+          type: integer
+          readOnly: true
+          description: ID of the associated appointment
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          description: Payment amount in local currency
+        status:
+          allOf:
+          - $ref: '#/components/schemas/PaymentStatusEnum'
+          description: |-
+            Payment status: pending, completed, failed, or refunded
+
+            * `pending` - Pending
+            * `completed` - Completed
+            * `failed` - Failed
+            * `refunded` - Refunded
+        payment_method:
+          type: string
+          description: Payment method used (e.g., credit_card, debit_card, cash, insurance)
+          maxLength: 50
+        transaction_id:
+          type: string
+          nullable: true
+          description: Unique transaction identifier from payment gateway
+          maxLength: 100
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - amount
+      - payment_method
+      - status
+    PaymentStatusEnum:
+      enum:
+      - pending
+      - completed
+      - failed
+      - refunded
+      type: string
+      description: |-
+        * `pending` - Pending
+        * `completed` - Completed
+        * `failed` - Failed
+        * `refunded` - Refunded
+    Prescription:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        appointment:
+          type: integer
+          readOnly: true
+        diagnosis:
+          type: string
+        instructions:
+          type: string
+        medicines:
+          type: array
+          items:
+            $ref: '#/components/schemas/Medicine'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - diagnosis
+    PrescriptionCreateRequest:
+      type: object
+      properties:
+        diagnosis:
+          type: string
+          minLength: 1
+          description: Medical diagnosis or condition identified by the doctor
+          maxLength: 500
+        instructions:
+          type: string
+          description: Additional instructions for the patient (e.g., dietary advice,
+            precautions)
+        medicines:
+          type: array
+          items:
+            $ref: '#/components/schemas/MedicineRequest'
+      required:
+      - diagnosis
+      - medicines
+    RegisterRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          minLength: 1
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+          pattern: ^[\w.@+-]+$
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          title: Email address
+          maxLength: 254
+        password:
+          type: string
+          writeOnly: true
+          minLength: 1
+          description: Password must be at least 8 characters with letters and numbers
+        password2:
+          type: string
+          writeOnly: true
+          minLength: 1
+          description: Confirm password (must match password field)
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        role:
+          allOf:
+          - $ref: '#/components/schemas/RegisterRoleEnum'
+          default: patient
+          description: |-
+            User role: patient, doctor, or admin
+
+            * `patient` - patient
+            * `doctor` - doctor
+            * `admin` - admin
+        phone:
+          type: string
+          description: Contact phone number with country code
+      required:
+      - password
+      - password2
+      - username
+    RegisterRoleEnum:
+      enum:
+      - patient
+      - doctor
+      - admin
+      type: string
+      description: |-
+        * `patient` - patient
+        * `doctor` - doctor
+        * `admin` - admin
+    Review:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        patient:
+          allOf:
+          - $ref: '#/components/schemas/User'
+          readOnly: true
+          description: Patient who wrote the review
+        doctor:
+          type: integer
+          description: ID of the doctor being reviewed
+        rating:
+          type: integer
+          maximum: 5
+          minimum: 1
+          description: Rating from 1 to 5 stars (1=poor, 5=excellent)
+        comment:
+          type: string
+          description: Review comment describing the experience with the doctor
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - comment
+      - doctor
+      - rating
+    ReviewRequest:
+      type: object
+      properties:
+        doctor:
+          type: integer
+          description: ID of the doctor being reviewed
+        rating:
+          type: integer
+          maximum: 5
+          minimum: 1
+          description: Rating from 1 to 5 stars (1=poor, 5=excellent)
+        comment:
+          type: string
+          minLength: 1
+          description: Review comment describing the experience with the doctor
+      required:
+      - comment
+      - doctor
+      - rating
+    Status9d8Enum:
+      enum:
+      - pending
+      - confirmed
+      - completed
+      - cancelled
+      type: string
+      description: |-
+        * `pending` - Pending
+        * `confirmed` - Confirmed
+        * `completed` - Completed
+        * `cancelled` - Cancelled
+    TokenObtainPair:
+      type: object
+      properties:
+        access:
+          type: string
+          readOnly: true
+        refresh:
+          type: string
+          readOnly: true
+    TokenObtainPairRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          writeOnly: true
+          minLength: 1
+        password:
+          type: string
+          writeOnly: true
+          minLength: 1
+      required:
+      - password
+      - username
+    TokenRefresh:
+      type: object
+      properties:
+        access:
+          type: string
+          readOnly: true
+        refresh:
+          type: string
+      required:
+      - refresh
+    TokenRefreshRequest:
+      type: object
+      properties:
+        refresh:
+          type: string
+          minLength: 1
+      required:
+      - refresh
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        username:
+          type: string
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+          pattern: ^[\w.@+-]+$
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          title: Email address
+          maxLength: 254
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        role:
+          $ref: '#/components/schemas/UserRoleEnum'
+        phone:
+          type: string
+          maxLength: 15
+        date_of_birth:
+          type: string
+          format: date
+          nullable: true
+        address:
+          type: string
+        profile_picture:
+          type: string
+          format: uri
+          nullable: true
+      required:
+      - username
+    UserRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          minLength: 1
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+          pattern: ^[\w.@+-]+$
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          title: Email address
+          maxLength: 254
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        role:
+          $ref: '#/components/schemas/UserRoleEnum'
+        phone:
+          type: string
+          maxLength: 15
+        date_of_birth:
+          type: string
+          format: date
+          nullable: true
+        address:
+          type: string
+        profile_picture:
+          type: string
+          format: binary
+          nullable: true
+      required:
+      - username
+    UserRoleEnum:
+      enum:
+      - patient
+      - doctor
+      - admin
+      type: string
+      description: |-
+        * `patient` - Patient
+        * `doctor` - Doctor
+        * `admin` - Admin
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: 'JWT token obtained from /api/auth/login/ endpoint. Format: Bearer
+        {token}'
+    jwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+tags:
+- name: Authentication
+  description: User registration, login, and profile management
+- name: Doctors
+  description: Doctor profiles, availability, and search
+- name: Appointments
+  description: Appointment booking, management, and prescriptions
+- name: Payments
+  description: Payment processing and history
+- name: Reviews
+  description: Doctor reviews and ratings
+- name: Notifications
+  description: User notifications
+- name: Admin
+  description: Administrative operations

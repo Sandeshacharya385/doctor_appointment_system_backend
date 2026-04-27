@@ -3,10 +3,45 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.views import APIView
 from django_filters.rest_framework import DjangoFilterBackend
+from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter
+from drf_spectacular.types import OpenApiTypes
 from .models import Doctor, DoctorAvailability
 from .serializers import DoctorSerializer, DoctorAvailabilitySerializer, DoctorProfileUpdateSerializer
 
 
+@extend_schema_view(
+    get=extend_schema(
+        tags=['Doctors'],
+        summary='List all available doctors',
+        description='Retrieve list of doctors with optional filtering by specialization and search by name. Results can be ordered by consultation fee or experience years.',
+        parameters=[
+            OpenApiParameter(
+                name='specialization',
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.QUERY,
+                description='Filter by doctor specialization (e.g., Cardiology, Dermatology, Pediatrics)',
+                required=False,
+            ),
+            OpenApiParameter(
+                name='search',
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.QUERY,
+                description='Search by doctor first name, last name, or specialization',
+                required=False,
+            ),
+            OpenApiParameter(
+                name='ordering',
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.QUERY,
+                description='Order by field: consultation_fee, -consultation_fee, experience_years, -experience_years (prefix with - for descending)',
+                required=False,
+            ),
+        ],
+        responses={
+            200: DoctorSerializer(many=True),
+        },
+    )
+)
 class DoctorListView(generics.ListAPIView):
     queryset = Doctor.objects.filter(is_available=True)
     serializer_class = DoctorSerializer
@@ -17,12 +52,47 @@ class DoctorListView(generics.ListAPIView):
     ordering_fields = ['consultation_fee', 'experience_years']
 
 
+@extend_schema(
+    tags=['Doctors'],
+    summary='Get doctor details',
+    description='Retrieve detailed information about a specific doctor including profile, specialization, availability schedule, and consultation fee.',
+    responses={
+        200: DoctorSerializer,
+        404: OpenApiTypes.OBJECT,
+    },
+)
 class DoctorDetailView(generics.RetrieveAPIView):
     queryset = Doctor.objects.all()
     serializer_class = DoctorSerializer
     permission_classes = [AllowAny]
 
 
+@extend_schema_view(
+    get=extend_schema(
+        tags=['Doctors'],
+        summary='Get doctor own profile',
+        description='Doctor retrieves their own profile information including consultation fee, bio, availability status, and professional details. Requires doctor role authentication.',
+        responses={
+            200: DoctorSerializer,
+            401: OpenApiTypes.OBJECT,
+            403: OpenApiTypes.OBJECT,
+            404: OpenApiTypes.OBJECT,
+        },
+    ),
+    patch=extend_schema(
+        tags=['Doctors'],
+        summary='Update doctor profile',
+        description='Doctor updates their own profile fields including consultation fee, bio, availability status, specialization, qualification, and experience years. Requires doctor role authentication.',
+        request=DoctorProfileUpdateSerializer,
+        responses={
+            200: DoctorSerializer,
+            400: OpenApiTypes.OBJECT,
+            401: OpenApiTypes.OBJECT,
+            403: OpenApiTypes.OBJECT,
+            404: OpenApiTypes.OBJECT,
+        },
+    ),
+)
 class DoctorProfileView(APIView):
     """Doctor manages their own profile — fee, bio, availability toggle."""
     permission_classes = [IsAuthenticated]
@@ -50,6 +120,30 @@ class DoctorProfileView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+@extend_schema_view(
+    get=extend_schema(
+        tags=['Doctors'],
+        summary='Get doctor availability slots',
+        description='Doctor retrieves their own weekly availability schedule. Returns all availability slots with day, time range, and active status. Requires doctor role authentication.',
+        responses={
+            200: DoctorAvailabilitySerializer(many=True),
+            401: OpenApiTypes.OBJECT,
+            403: OpenApiTypes.OBJECT,
+        },
+    ),
+    post=extend_schema(
+        tags=['Doctors'],
+        summary='Create availability slot',
+        description='Doctor creates a new availability slot for a specific day of the week with start and end times. Requires doctor role authentication.',
+        request=DoctorAvailabilitySerializer,
+        responses={
+            201: DoctorAvailabilitySerializer,
+            400: OpenApiTypes.OBJECT,
+            401: OpenApiTypes.OBJECT,
+            403: OpenApiTypes.OBJECT,
+        },
+    ),
+)
 class DoctorAvailabilityView(APIView):
     """Doctor manages their own availability slots."""
     permission_classes = [IsAuthenticated]
@@ -72,6 +166,30 @@ class DoctorAvailabilityView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+@extend_schema_view(
+    patch=extend_schema(
+        tags=['Doctors'],
+        summary='Update availability slot',
+        description='Doctor updates an existing availability slot. Can modify day, time range, or active status. Requires doctor role authentication.',
+        request=DoctorAvailabilitySerializer,
+        responses={
+            200: DoctorAvailabilitySerializer,
+            400: OpenApiTypes.OBJECT,
+            401: OpenApiTypes.OBJECT,
+            404: OpenApiTypes.OBJECT,
+        },
+    ),
+    delete=extend_schema(
+        tags=['Doctors'],
+        summary='Delete availability slot',
+        description='Doctor deletes an existing availability slot. Requires doctor role authentication.',
+        responses={
+            204: None,
+            401: OpenApiTypes.OBJECT,
+            404: OpenApiTypes.OBJECT,
+        },
+    ),
+)
 class DoctorAvailabilityDetailView(APIView):
     """Update or delete a single availability slot."""
     permission_classes = [IsAuthenticated]
@@ -100,6 +218,46 @@ class DoctorAvailabilityDetailView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+@extend_schema(
+    tags=['Doctors'],
+    summary='Get available time slots for doctor',
+    description='Retrieve available 30-minute time slots for a specific doctor on a given date. Returns slots within doctor availability windows, marking which are already booked. Accessible to all users.',
+    parameters=[
+        OpenApiParameter(
+            name='doctor_id',
+            type=OpenApiTypes.INT,
+            location=OpenApiParameter.PATH,
+            description='Doctor ID',
+            required=True,
+        ),
+        OpenApiParameter(
+            name='date',
+            type=OpenApiTypes.DATE,
+            location=OpenApiParameter.QUERY,
+            description='Date in YYYY-MM-DD format to check availability',
+            required=True,
+        ),
+    ],
+    responses={
+        200: {
+            'type': 'object',
+            'properties': {
+                'slots': {
+                    'type': 'array',
+                    'items': {
+                        'type': 'object',
+                        'properties': {
+                            'time': {'type': 'string', 'example': '09:00'},
+                            'available': {'type': 'boolean', 'example': True},
+                        }
+                    }
+                },
+                'message': {'type': 'string', 'example': 'Doctor not available on this day.'}
+            }
+        },
+        400: OpenApiTypes.OBJECT,
+    },
+)
 class DoctorAvailableSlotsView(APIView):
     """Return available time slots for a doctor on a given date (for patients)."""
     permission_classes = [AllowAny]

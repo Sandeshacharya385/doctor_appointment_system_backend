@@ -10,8 +10,25 @@ class UserSerializer(serializers.ModelSerializer):
         read_only_fields = ['id']
 
 class RegisterSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True, validators=[validate_password])
-    password2 = serializers.CharField(write_only=True)
+    password = serializers.CharField(
+        write_only=True,
+        validators=[validate_password],
+        help_text='Password must be at least 8 characters with letters and numbers'
+    )
+    password2 = serializers.CharField(
+        write_only=True,
+        help_text='Confirm password (must match password field)'
+    )
+    role = serializers.ChoiceField(
+        choices=['patient', 'doctor', 'admin'],
+        default='patient',
+        help_text='User role: patient, doctor, or admin'
+    )
+    phone = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        help_text='Contact phone number with country code'
+    )
     
     class Meta:
         model = User

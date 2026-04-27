@@ -3,16 +3,79 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView
+from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiExample, OpenApiParameter
+from drf_spectacular.types import OpenApiTypes
 from .models import User
 from .serializers import RegisterSerializer, UserSerializer
 
 
+@extend_schema_view(
+    post=extend_schema(
+        tags=['Authentication'],
+        summary='Register new user',
+        description='Create a new user account with role (patient, doctor, or admin). Doctors should be created via admin endpoint.',
+        request=RegisterSerializer,
+        responses={
+            201: UserSerializer,
+            400: OpenApiTypes.OBJECT,
+        },
+        examples=[
+            OpenApiExample(
+                'Patient Registration',
+                value={
+                    'username': 'john_doe',
+                    'email': 'john@example.com',
+                    'password': 'SecurePass123!',
+                    'password2': 'SecurePass123!',
+                    'first_name': 'John',
+                    'last_name': 'Doe',
+                    'role': 'patient',
+                    'phone': '+1234567890'
+                },
+                request_only=True,
+            ),
+        ],
+    )
+)
 class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
     permission_classes = (AllowAny,)
     serializer_class = RegisterSerializer
 
 
+@extend_schema_view(
+    get=extend_schema(
+        tags=['Authentication'],
+        summary='Get current user profile',
+        description='Retrieve authenticated user profile information including personal details, role, and contact information.',
+        responses={
+            200: UserSerializer,
+            401: OpenApiTypes.OBJECT,
+        },
+    ),
+    put=extend_schema(
+        tags=['Authentication'],
+        summary='Update user profile',
+        description='Update authenticated user profile information. All fields must be provided.',
+        request=UserSerializer,
+        responses={
+            200: UserSerializer,
+            400: OpenApiTypes.OBJECT,
+            401: OpenApiTypes.OBJECT,
+        },
+    ),
+    patch=extend_schema(
+        tags=['Authentication'],
+        summary='Partially update user profile',
+        description='Partially update authenticated user profile information. Only provided fields will be updated.',
+        request=UserSerializer,
+        responses={
+            200: UserSerializer,
+            400: OpenApiTypes.OBJECT,
+            401: OpenApiTypes.OBJECT,
+        },
+    ),
+)
 class UserProfileView(generics.RetrieveUpdateAPIView):
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated]
@@ -28,6 +91,26 @@ class IsAdmin(IsAuthenticated):
         return super().has_permission(request, view) and request.user.role == 'admin'
 
 
+@extend_schema(
+    tags=['Admin'],
+    summary='List all users',
+    description='Admin-only endpoint to retrieve a list of all users in the system. Supports optional filtering by user role (patient, doctor, admin). Results are ordered by date joined (newest first).',
+    parameters=[
+        OpenApiParameter(
+            name='role',
+            type=OpenApiTypes.STR,
+            location=OpenApiParameter.QUERY,
+            description='Filter users by role: patient, doctor, or admin',
+            required=False,
+            enum=['patient', 'doctor', 'admin'],
+        ),
+    ],
+    responses={
+        200: UserSerializer(many=True),
+        401: OpenApiTypes.OBJECT,
+        403: OpenApiTypes.OBJECT,
+    },
+)
 class AdminUserListView(generics.ListAPIView):
     """Admin: list all users, optionally filter by role."""
     serializer_class = UserSerializer
@@ -43,6 +126,57 @@ class AdminUserListView(generics.ListAPIView):
         return qs
 
 
+@extend_schema_view(
+    get=extend_schema(
+        tags=['Admin'],
+        summary='Get user details',
+        description='Admin-only endpoint to retrieve detailed information about a specific user by ID.',
+        responses={
+            200: UserSerializer,
+            401: OpenApiTypes.OBJECT,
+            403: OpenApiTypes.OBJECT,
+            404: OpenApiTypes.OBJECT,
+        },
+    ),
+    put=extend_schema(
+        tags=['Admin'],
+        summary='Update user',
+        description='Admin-only endpoint to update all fields of a specific user. All fields must be provided.',
+        request=UserSerializer,
+        responses={
+            200: UserSerializer,
+            400: OpenApiTypes.OBJECT,
+            401: OpenApiTypes.OBJECT,
+            403: OpenApiTypes.OBJECT,
+            404: OpenApiTypes.OBJECT,
+        },
+    ),
+    patch=extend_schema(
+        tags=['Admin'],
+        summary='Partially update user',
+        description='Admin-only endpoint to partially update a specific user. Only provided fields will be updated.',
+        request=UserSerializer,
+        responses={
+            200: UserSerializer,
+            400: OpenApiTypes.OBJECT,
+            401: OpenApiTypes.OBJECT,
+            403: OpenApiTypes.OBJECT,
+            404: OpenApiTypes.OBJECT,
+        },
+    ),
+    delete=extend_schema(
+        tags=['Admin'],
+        summary='Delete user',
+        description='Admin-only endpoint to delete a specific user. Admins cannot delete themselves.',
+        responses={
+            204: None,
+            400: OpenApiTypes.OBJECT,
+            401: OpenApiTypes.OBJECT,
+            403: OpenApiTypes.OBJECT,
+            404: OpenApiTypes.OBJECT,
+        },
+    ),
+)
 class AdminUserDetailView(generics.RetrieveUpdateDestroyAPIView):
     """Admin: get, update or delete any user."""
     serializer_class = UserSerializer
@@ -61,6 +195,60 @@ class AdminUserDetailView(generics.RetrieveUpdateDestroyAPIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+@extend_schema(
+    tags=['Admin'],
+    summary='Create doctor account',
+    description='Admin-only endpoint to create a new user with doctor role and associated doctor profile. Creates both the user account and doctor profile in a single operation.',
+    request={
+        'application/json': {
+            'type': 'object',
+            'properties': {
+                'username': {'type': 'string', 'description': 'Unique username for the doctor'},
+                'email': {'type': 'string', 'format': 'email', 'description': 'Doctor email address'},
+                'password': {'type': 'string', 'description': 'Password for the account'},
+                'first_name': {'type': 'string', 'description': 'Doctor first name'},
+                'last_name': {'type': 'string', 'description': 'Doctor last name'},
+                'phone': {'type': 'string', 'description': 'Contact phone number'},
+                'specialization': {'type': 'string', 'description': 'Medical specialization (e.g., Cardiology, Dermatology)'},
+                'qualification': {'type': 'string', 'description': 'Medical qualifications and degrees'},
+                'experience_years': {'type': 'integer', 'description': 'Years of medical experience'},
+                'consultation_fee': {'type': 'number', 'format': 'decimal', 'description': 'Consultation fee amount'},
+                'bio': {'type': 'string', 'description': 'Doctor biography and additional information'},
+            },
+            'required': ['username', 'email', 'password'],
+        }
+    },
+    responses={
+        201: {
+            'type': 'object',
+            'properties': {
+                'message': {'type': 'string', 'example': 'Doctor created successfully.'}
+            }
+        },
+        400: OpenApiTypes.OBJECT,
+        401: OpenApiTypes.OBJECT,
+        403: OpenApiTypes.OBJECT,
+    },
+    examples=[
+        OpenApiExample(
+            'Create Doctor',
+            value={
+                'username': 'dr_smith',
+                'email': 'dr.smith@hospital.com',
+                'password': 'SecurePass123!',
+                'first_name': 'John',
+                'last_name': 'Smith',
+                'phone': '+1234567890',
+                'specialization': 'Cardiology',
+                'qualification': 'MBBS, MD Cardiology',
+                'experience_years': 10,
+                'consultation_fee': 150.00,
+                'bio': 'Experienced cardiologist specializing in heart disease prevention and treatment.'
+            },
+            request_only=True,
+        ),
+    ],
+)
 class AdminCreateDoctorView(APIView):
     """Admin: create a user with role=doctor and their doctor profile."""
     permission_classes = [IsAuthenticated]

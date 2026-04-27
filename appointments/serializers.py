@@ -1,11 +1,32 @@
 from rest_framework import serializers
 from .models import Appointment, Prescription, Medicine
+from doctors.models import Doctor
 from doctors.serializers import DoctorSerializer
 from users.serializers import UserSerializer
 
 
 class MedicineSerializer(serializers.ModelSerializer):
     frequency_display = serializers.CharField(source='get_frequency_display', read_only=True)
+    name = serializers.CharField(
+        max_length=200,
+        help_text='Name of the medicine or drug'
+    )
+    dosage = serializers.CharField(
+        max_length=100,
+        help_text='Dosage amount and unit (e.g., 500mg, 10ml)'
+    )
+    frequency = serializers.ChoiceField(
+        choices=[('once', 'Once daily'), ('twice', 'Twice daily'), ('thrice', 'Thrice daily'), ('as_needed', 'As needed')],
+        help_text='Frequency of medication intake: once, twice, thrice, or as_needed'
+    )
+    duration_days = serializers.IntegerField(
+        help_text='Duration of medication in days'
+    )
+    timing_notes = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        help_text='Additional timing instructions (e.g., after meals, before bed)'
+    )
 
     class Meta:
         model = Medicine
@@ -23,6 +44,15 @@ class PrescriptionSerializer(serializers.ModelSerializer):
 
 class PrescriptionCreateSerializer(serializers.ModelSerializer):
     medicines = MedicineSerializer(many=True)
+    diagnosis = serializers.CharField(
+        max_length=500,
+        help_text='Medical diagnosis or condition identified by the doctor'
+    )
+    instructions = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        help_text='Additional instructions for the patient (e.g., dietary advice, precautions)'
+    )
 
     class Meta:
         model = Prescription
@@ -60,6 +90,21 @@ class AppointmentSerializer(serializers.ModelSerializer):
 
 
 class AppointmentCreateSerializer(serializers.ModelSerializer):
+    doctor = serializers.PrimaryKeyRelatedField(
+        queryset=Doctor.objects.filter(is_available=True),
+        help_text='ID of the doctor to book appointment with (must be available)'
+    )
+    appointment_date = serializers.DateField(
+        help_text='Appointment date in YYYY-MM-DD format'
+    )
+    appointment_time = serializers.TimeField(
+        help_text='Appointment time in HH:MM format (30-minute slots, e.g., 09:00, 09:30)'
+    )
+    reason = serializers.CharField(
+        max_length=500,
+        help_text='Reason for appointment or symptoms description'
+    )
+
     class Meta:
         model = Appointment
         fields = ['doctor', 'appointment_date', 'appointment_time', 'reason']
