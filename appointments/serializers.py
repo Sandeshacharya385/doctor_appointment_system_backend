@@ -16,8 +16,18 @@ class MedicineSerializer(serializers.ModelSerializer):
         help_text='Dosage amount and unit (e.g., 500mg, 10ml)'
     )
     frequency = serializers.ChoiceField(
-        choices=[('once', 'Once daily'), ('twice', 'Twice daily'), ('thrice', 'Thrice daily'), ('as_needed', 'As needed')],
-        help_text='Frequency of medication intake: once, twice, thrice, or as_needed'
+        choices=[
+            ('once_daily', 'Once Daily'),
+            ('twice_daily', 'Twice Daily'),
+            ('three_times_daily', 'Three Times Daily'),
+            ('four_times_daily', 'Four Times Daily'),
+            ('every_morning', 'Every Morning'),
+            ('every_night', 'Every Night'),
+            ('before_meal', 'Before Meal'),
+            ('after_meal', 'After Meal'),
+            ('as_needed', 'As Needed'),
+        ],
+        help_text='Frequency of medication intake'
     )
     duration_days = serializers.IntegerField(
         help_text='Duration of medication in days'
