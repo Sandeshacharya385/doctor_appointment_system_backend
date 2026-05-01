@@ -9,6 +9,7 @@ from .serializers import (
     AppointmentSerializer, AppointmentCreateSerializer,
     AppointmentStatusSerializer, PrescriptionCreateSerializer, PrescriptionSerializer
 )
+from notifications.services import NotificationService
 
 
 @extend_schema_view(
@@ -60,7 +61,10 @@ class AppointmentListCreateView(generics.ListCreateAPIView):
         if self.request.user.role != 'patient':
             from rest_framework.exceptions import PermissionDenied
             raise PermissionDenied("Only patients can book appointments.")
-        serializer.save(patient=self.request.user)
+        appointment = serializer.save(patient=self.request.user)
+        
+        # Send notification to doctor
+        NotificationService.notify_appointment_booked(appointment)
 
 
 @extend_schema_view(
@@ -112,6 +116,29 @@ class AppointmentDetailView(generics.RetrieveUpdateDestroyAPIView):
         if user.role == 'admin':
             return Appointment.objects.all()
         return Appointment.objects.filter(patient=user)
+    
+    def perform_update(self, serializer):
+        old_status = serializer.instance.status
+        appointment = serializer.save()
+        new_status = appointment.status
+        
+        # Send notifications based on status change
+        if old_status != new_status:
+            if new_status == 'confirmed':
+                NotificationService.notify_appointment_confirmed(appointment)
+            elif new_status == 'completed':
+                NotificationService.notify_appointment_completed(appointment)
+            elif new_status == 'cancelled':
+                # Determine who cancelled
+                cancelled_by = 'patient' if self.request.user.role == 'patient' else 'doctor'
+                NotificationService.notify_appointment_cancelled(appointment, cancelled_by)
+    
+    def perform_destroy(self, instance):
+        # Notify about cancellation before deleting
+        cancelled_by = 'patient' if self.request.user.role == 'patient' else 'doctor'
+        NotificationService.notify_appointment_cancelled(instance, cancelled_by)
+        instance.status = 'cancelled'
+        instance.save()
 
 
 class PrescriptionCreateUpdateView(APIView):
@@ -143,6 +170,9 @@ class PrescriptionCreateUpdateView(APIView):
         appt = self.get_appointment(appointment_id, request.user)
         if not appt:
             return Response({'error': 'Appointment not found.'}, status=status.HTTP_404_NOT_FOUND)
+        
+        is_new_prescription = not hasattr(appt, 'prescription')
+        
         if hasattr(appt, 'prescription'):
             serializer = PrescriptionCreateSerializer(appt.prescription, data=request.data)
         else:
@@ -151,6 +181,12 @@ class PrescriptionCreateUpdateView(APIView):
             serializer.save(appointment=appt)
             appt.status = 'completed'
             appt.save()
+            
+            # Send notification to patient about new prescription
+            if is_new_prescription:
+                NotificationService.notify_prescription_issued(appt)
+                NotificationService.notify_appointment_completed(appt)
+            
             return Response(PrescriptionSerializer(serializer.instance).data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 

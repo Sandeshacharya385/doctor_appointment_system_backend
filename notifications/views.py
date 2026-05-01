@@ -21,6 +21,7 @@ from .serializers import NotificationSerializer
 class NotificationListView(generics.ListAPIView):
     serializer_class = NotificationSerializer
     permission_classes = [IsAuthenticated]
+    pagination_class = None  # Disable pagination for notifications
     
     def get_queryset(self):
         return Notification.objects.filter(user=self.request.user)
@@ -73,3 +74,25 @@ class MarkAllNotificationsReadView(APIView):
     def post(self, request):
         Notification.objects.filter(user=request.user, is_read=False).update(is_read=True)
         return Response({'message': 'All notifications marked as read'})
+
+
+@extend_schema(
+    tags=['Notifications'],
+    summary='Create test notification',
+    description='Create a test notification for the authenticated user (for testing purposes).',
+    responses={
+        201: NotificationSerializer,
+        401: OpenApiTypes.OBJECT,
+    },
+)
+class CreateTestNotificationView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request):
+        from .services import NotificationService
+        notification = NotificationService.create_notification(
+            user=request.user,
+            title="Test Notification",
+            message=f"This is a test notification. The notification system is working correctly! Created at notification #{Notification.objects.count() + 1}"
+        )
+        return Response(NotificationSerializer(notification).data, status=status.HTTP_201_CREATED)

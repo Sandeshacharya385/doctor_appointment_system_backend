@@ -4,6 +4,7 @@ from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiPara
 from drf_spectacular.types import OpenApiTypes
 from .models import Review
 from .serializers import ReviewSerializer
+from notifications.services import NotificationService
 
 @extend_schema_view(
     get=extend_schema(
@@ -47,4 +48,7 @@ class ReviewListCreateView(generics.ListCreateAPIView):
         return Review.objects.all()
     
     def perform_create(self, serializer):
-        serializer.save(patient=self.request.user)
+        review = serializer.save(patient=self.request.user)
+        
+        # Send notification to doctor about new review
+        NotificationService.notify_review_submitted(review)
