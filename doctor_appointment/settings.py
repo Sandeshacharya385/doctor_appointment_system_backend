@@ -74,6 +74,12 @@ DATABASES = {
         'PASSWORD': config('DB_PASSWORD'),
         'HOST': config('DB_HOST', default='localhost'),
         'PORT': config('DB_PORT', default='5050'),
+        # Performance optimizations
+        'CONN_MAX_AGE': 600,  # Keep connections alive for 10 minutes
+        'OPTIONS': {
+            'connect_timeout': 10,
+            'options': '-c statement_timeout=30000'  # 30 second query timeout
+        },
     }
 }
 
@@ -110,6 +116,19 @@ REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 10,
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    # Performance: Enable compression
+    'DEFAULT_RENDERER_CLASSES': (
+        'rest_framework.renderers.JSONRenderer',
+    ),
+    # Security: Rate limiting (requires django-ratelimit or throttling)
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle'
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '100/hour',  # Anonymous users: 100 requests per hour
+        'user': '1000/hour'  # Authenticated users: 1000 requests per hour
+    }
 }
 
 # drf-spectacular settings
@@ -181,6 +200,16 @@ SIMPLE_JWT = {
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
     'AUTH_HEADER_TYPES': ('Bearer',),
+    # Security enhancements
+    'UPDATE_LAST_LOGIN': True,
+    'ALGORITHM': 'HS256',
+    'SIGNING_KEY': SECRET_KEY,
+    'VERIFYING_KEY': None,
+    'AUTH_HEADER_NAME': 'HTTP_AUTHORIZATION',
+    'USER_ID_FIELD': 'id',
+    'USER_ID_CLAIM': 'user_id',
+    'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
+    'TOKEN_TYPE_CLAIM': 'token_type',
 }
 
 # CORS Settings
@@ -274,3 +303,179 @@ JAZZMIN_UI_TWEAKS = {
         "success": "btn-success",
     },
 }
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SECURITY SETTINGS
+# ══════════════════════════════════════════════════════════════════════════════
+
+# Security Headers
+SECURE_BROWSER_XSS_FILTER = True  # Enable XSS filter
+SECURE_CONTENT_TYPE_NOSNIFF = True  # Prevent MIME type sniffing
+X_FRAME_OPTIONS = 'DENY'  # Prevent clickjacking
+SECURE_REFERRER_POLICY = 'same-origin'  # Control referrer information
+
+# HTTPS Settings (Enable in production)
+# SECURE_SSL_REDIRECT = True  # Redirect all HTTP to HTTPS
+# SESSION_COOKIE_SECURE = True  # Only send session cookie over HTTPS
+# CSRF_COOKIE_SECURE = True  # Only send CSRF cookie over HTTPS
+# SECURE_HSTS_SECONDS = 31536000  # Enable HSTS for 1 year
+# SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+# SECURE_HSTS_PRELOAD = True
+
+# Session Security
+SESSION_COOKIE_HTTPONLY = True  # Prevent JavaScript access to session cookie
+SESSION_COOKIE_SAMESITE = 'Lax'  # CSRF protection
+SESSION_COOKIE_AGE = 86400  # Session expires after 24 hours
+SESSION_SAVE_EVERY_REQUEST = False  # Don't save session on every request (performance)
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False
+
+# CSRF Security
+CSRF_COOKIE_HTTPONLY = True  # Prevent JavaScript access to CSRF cookie
+CSRF_COOKIE_SAMESITE = 'Lax'
+CSRF_USE_SESSIONS = False
+CSRF_COOKIE_AGE = 31449600  # 1 year
+
+# Password Security (already configured but adding comments)
+# - UserAttributeSimilarityValidator: Password can't be too similar to user info
+# - MinimumLengthValidator: Minimum 8 characters
+# - CommonPasswordValidator: Prevents common passwords
+# - NumericPasswordValidator: Password can't be entirely numeric
+
+# Content Security Policy (CSP)
+# Add django-csp package for full CSP support
+# CSP_DEFAULT_SRC = ("'self'",)
+# CSP_SCRIPT_SRC = ("'self'", "'unsafe-inline'")
+# CSP_STYLE_SRC = ("'self'", "'unsafe-inline'")
+# CSP_IMG_SRC = ("'self'", "data:", "https:")
+# CSP_FONT_SRC = ("'self'", "data:")
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PERFORMANCE SETTINGS
+# ══════════════════════════════════════════════════════════════════════════════
+
+# Database Query Optimization
+# Log slow queries in development
+if DEBUG:
+    LOGGING = {
+        'version': 1,
+        'disable_existing_loggers': False,
+        'handlers': {
+            'console': {
+                'class': 'logging.StreamHandler',
+            },
+        },
+        'loggers': {
+            'django.db.backends': {
+                'handlers': ['console'],
+                'level': 'DEBUG' if config('LOG_SQL', default=False, cast=bool) else 'INFO',
+            },
+        },
+    }
+
+# Caching Configuration (using local memory cache for development)
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'unique-snowflake',
+        'TIMEOUT': 300,  # 5 minutes default timeout
+        'OPTIONS': {
+            'MAX_ENTRIES': 1000
+        }
+    }
+}
+
+# For production, use Redis:
+# CACHES = {
+#     'default': {
+#         'BACKEND': 'django_redis.cache.RedisCache',
+#         'LOCATION': 'redis://127.0.0.1:6379/1',
+#         'OPTIONS': {
+#             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+#             'CONNECTION_POOL_KWARGS': {'max_connections': 50}
+#         }
+#     }
+# }
+
+# Static Files Optimization
+STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.ManifestStaticFilesStorage'
+
+# File Upload Settings
+FILE_UPLOAD_MAX_MEMORY_SIZE = 5242880  # 5MB
+DATA_UPLOAD_MAX_MEMORY_SIZE = 5242880  # 5MB
+FILE_UPLOAD_PERMISSIONS = 0o644
+
+# ══════════════════════════════════════════════════════════════════════════════
+# ADDITIONAL SECURITY MEASURES
+# ══════════════════════════════════════════════════════════════════════════════
+
+# Prevent host header attacks
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1').split(',')
+
+# Admin Security
+ADMIN_URL = config('ADMIN_URL', default='admin/')  # Can be changed to hide admin panel
+
+# Email Security (for password reset, notifications, etc.)
+# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+# EMAIL_HOST = config('EMAIL_HOST', default='smtp.gmail.com')
+# EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
+# EMAIL_USE_TLS = True
+# EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
+# EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
+# DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@medibook.com')
+
+# Security Middleware Order (already configured but documenting)
+# 1. SecurityMiddleware - Adds security headers
+# 2. CorsMiddleware - Handles CORS
+# 3. SessionMiddleware - Manages sessions
+# 4. CommonMiddleware - Common operations
+# 5. CsrfViewMiddleware - CSRF protection
+# 6. AuthenticationMiddleware - User authentication
+# 7. MessageMiddleware - Flash messages
+# 8. ClickjackingMiddleware - Clickjacking protection
+
+# ══════════════════════════════════════════════════════════════════════════════
+# MONITORING & LOGGING (Production)
+# ══════════════════════════════════════════════════════════════════════════════
+
+# For production, add proper logging:
+# LOGGING = {
+#     'version': 1,
+#     'disable_existing_loggers': False,
+#     'formatters': {
+#         'verbose': {
+#             'format': '{levelname} {asctime} {module} {message}',
+#             'style': '{',
+#         },
+#     },
+#     'handlers': {
+#         'file': {
+#             'level': 'WARNING',
+#             'class': 'logging.handlers.RotatingFileHandler',
+#             'filename': BASE_DIR / 'logs' / 'django.log',
+#             'maxBytes': 1024 * 1024 * 15,  # 15MB
+#             'backupCount': 10,
+#             'formatter': 'verbose',
+#         },
+#         'security_file': {
+#             'level': 'WARNING',
+#             'class': 'logging.handlers.RotatingFileHandler',
+#             'filename': BASE_DIR / 'logs' / 'security.log',
+#             'maxBytes': 1024 * 1024 * 15,
+#             'backupCount': 10,
+#             'formatter': 'verbose',
+#         },
+#     },
+#     'loggers': {
+#         'django': {
+#             'handlers': ['file'],
+#             'level': 'WARNING',
+#             'propagate': True,
+#         },
+#         'django.security': {
+#             'handlers': ['security_file'],
+#             'level': 'WARNING',
+#             'propagate': False,
+#         },
+#     },
+# }

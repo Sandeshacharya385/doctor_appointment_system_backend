@@ -43,7 +43,7 @@ from .serializers import DoctorSerializer, DoctorAvailabilitySerializer, DoctorP
     )
 )
 class DoctorListView(generics.ListAPIView):
-    queryset = Doctor.objects.filter(is_available=True)
+    queryset = Doctor.objects.filter(is_available=True).select_related('user')  # Performance optimization
     serializer_class = DoctorSerializer
     permission_classes = [AllowAny]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
@@ -62,7 +62,7 @@ class DoctorListView(generics.ListAPIView):
     },
 )
 class DoctorDetailView(generics.RetrieveAPIView):
-    queryset = Doctor.objects.all()
+    queryset = Doctor.objects.all().select_related('user')  # Performance optimization
     serializer_class = DoctorSerializer
     permission_classes = [AllowAny]
 
