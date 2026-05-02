@@ -41,6 +41,30 @@ class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
     permission_classes = (AllowAny,)
     serializer_class = RegisterSerializer
+    
+    def create(self, request, *args, **kwargs):
+        # Check if username already exists
+        username = request.data.get('username')
+        if username and User.objects.filter(username=username).exists():
+            return Response(
+                {'detail': 'A user with this username already exists. Please choose a different username.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Check if email already exists
+        email = request.data.get('email')
+        if email and User.objects.filter(email=email).exists():
+            return Response(
+                {'detail': 'A user with this email already exists. Please use a different email address.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Proceed with normal registration
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
 
 @extend_schema_view(

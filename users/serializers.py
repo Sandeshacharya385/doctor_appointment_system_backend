@@ -19,6 +19,15 @@ class RegisterSerializer(serializers.ModelSerializer):
         write_only=True,
         help_text='Confirm password (must match password field)'
     )
+    first_name = serializers.CharField(
+        required=True,
+        help_text='User first name (required)'
+    )
+    last_name = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        help_text='User last name (optional)'
+    )
     role = serializers.ChoiceField(
         choices=['patient', 'doctor', 'admin'],
         default='patient',
@@ -39,6 +48,18 @@ class RegisterSerializer(serializers.ModelSerializer):
         model = User
         fields = ['username', 'email', 'password', 'password2', 'first_name', 
                   'last_name', 'role', 'phone', 'profile_picture']
+    
+    def validate_username(self, value):
+        """Check if username already exists"""
+        if User.objects.filter(username=value).exists():
+            raise serializers.ValidationError("A user with this username already exists. Please choose a different username.")
+        return value
+    
+    def validate_email(self, value):
+        """Check if email already exists"""
+        if User.objects.filter(email=value).exists():
+            raise serializers.ValidationError("A user with this email already exists. Please use a different email address.")
+        return value
     
     def validate(self, attrs):
         if attrs['password'] != attrs['password2']:
