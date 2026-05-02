@@ -29,11 +29,16 @@ class RegisterSerializer(serializers.ModelSerializer):
         allow_blank=True,
         help_text='Contact phone number with country code'
     )
+    profile_picture = serializers.ImageField(
+        required=False,
+        allow_null=True,
+        help_text='Optional profile picture (can be added later)'
+    )
     
     class Meta:
         model = User
         fields = ['username', 'email', 'password', 'password2', 'first_name', 
-                  'last_name', 'role', 'phone']
+                  'last_name', 'role', 'phone', 'profile_picture']
     
     def validate(self, attrs):
         if attrs['password'] != attrs['password2']:
