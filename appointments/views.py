@@ -111,11 +111,21 @@ class AppointmentDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     def get_queryset(self):
         user = self.request.user
+        # Optimize with select_related and prefetch_related to avoid N+1 queries
+        base_queryset = Appointment.objects.select_related(
+            'patient',
+            'doctor',
+            'doctor__user',
+            'prescription'
+        ).prefetch_related(
+            'prescription__medicines'
+        )
+        
         if user.role == 'doctor':
-            return Appointment.objects.filter(doctor__user=user)
+            return base_queryset.filter(doctor__user=user)
         if user.role == 'admin':
-            return Appointment.objects.all()
-        return Appointment.objects.filter(patient=user)
+            return base_queryset.all()
+        return base_queryset.filter(patient=user)
     
     def perform_update(self, serializer):
         old_status = serializer.instance.status
@@ -147,7 +157,14 @@ class PrescriptionCreateUpdateView(APIView):
 
     def get_appointment(self, appointment_id, user):
         try:
-            return Appointment.objects.get(id=appointment_id, doctor__user=user)
+            # Optimize with select_related and prefetch_related
+            return Appointment.objects.select_related(
+                'doctor',
+                'doctor__user',
+                'prescription'
+            ).prefetch_related(
+                'prescription__medicines'
+            ).get(id=appointment_id, doctor__user=user)
         except Appointment.DoesNotExist:
             return None
 
@@ -204,12 +221,21 @@ class PrescriptionCreateUpdateView(APIView):
         """Both doctor and patient can view the prescription."""
         user = request.user
         try:
+            # Optimize with select_related and prefetch_related
+            base_query = Appointment.objects.select_related(
+                'doctor',
+                'doctor__user',
+                'prescription'
+            ).prefetch_related(
+                'prescription__medicines'
+            )
+            
             if user.role == 'doctor':
-                appt = Appointment.objects.get(id=appointment_id, doctor__user=user)
+                appt = base_query.get(id=appointment_id, doctor__user=user)
             elif user.role == 'patient':
-                appt = Appointment.objects.get(id=appointment_id, patient=user)
+                appt = base_query.get(id=appointment_id, patient=user)
             else:
-                appt = Appointment.objects.get(id=appointment_id)
+                appt = base_query.get(id=appointment_id)
         except Appointment.DoesNotExist:
             return Response({'error': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
         if not hasattr(appt, 'prescription'):
@@ -249,9 +275,18 @@ class PatientPrescriptionsView(APIView):
     def get(self, request):
         if request.user.role != 'patient':
             return Response({'error': 'Patients only.'}, status=status.HTTP_403_FORBIDDEN)
+        
+        # Optimize with select_related and prefetch_related to avoid N+1 queries
         appointments = Appointment.objects.filter(
             patient=request.user, status='completed'
-        ).prefetch_related('prescription__medicines').select_related('doctor__user')
+        ).select_related(
+            'doctor',
+            'doctor__user',
+            'prescription'
+        ).prefetch_related(
+            'prescription__medicines'
+        )
+        
         result = []
         for appt in appointments:
             if hasattr(appt, 'prescription'):
@@ -329,10 +364,14 @@ class PatientHistoryView(APIView):
         except User.DoesNotExist:
             return Response({'error': 'Patient not found.'}, status=status.HTTP_404_NOT_FOUND)
 
-        # All appointments for this patient (across all doctors)
+        # Optimize with select_related and prefetch_related to avoid N+1 queries
         appointments = Appointment.objects.filter(
             patient=patient
-        ).select_related('doctor__user').prefetch_related(
+        ).select_related(
+            'doctor',
+            'doctor__user',
+            'prescription'
+        ).prefetch_related(
             'prescription__medicines'
         ).order_by('-appointment_date', '-appointment_time')
 

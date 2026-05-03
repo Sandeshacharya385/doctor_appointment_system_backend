@@ -42,10 +42,17 @@ class ReviewListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
+        # Optimize with select_related to avoid N+1 queries
+        queryset = Review.objects.select_related(
+            'patient',
+            'doctor',
+            'doctor__user'
+        )
+        
         doctor_id = self.request.query_params.get('doctor')
         if doctor_id:
-            return Review.objects.filter(doctor_id=doctor_id)
-        return Review.objects.all()
+            return queryset.filter(doctor_id=doctor_id)
+        return queryset
     
     def perform_create(self, serializer):
         review = serializer.save(patient=self.request.user)

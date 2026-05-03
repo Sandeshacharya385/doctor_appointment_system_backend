@@ -21,4 +21,10 @@ class PaymentListView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
-        return Payment.objects.filter(appointment__patient=self.request.user)
+        # Optimize with select_related to avoid N+1 queries
+        return Payment.objects.select_related(
+            'appointment',
+            'appointment__patient',
+            'appointment__doctor',
+            'appointment__doctor__user'
+        ).filter(appointment__patient=self.request.user)

@@ -43,7 +43,8 @@ from .serializers import DoctorSerializer, DoctorAvailabilitySerializer, DoctorP
     )
 )
 class DoctorListView(generics.ListAPIView):
-    queryset = Doctor.objects.filter(is_available=True).select_related('user')  # Performance optimization
+    # Optimize with select_related and prefetch_related to avoid N+1 queries
+    queryset = Doctor.objects.filter(is_available=True).select_related('user').prefetch_related('availability')
     serializer_class = DoctorSerializer
     permission_classes = [AllowAny]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
@@ -62,7 +63,8 @@ class DoctorListView(generics.ListAPIView):
     },
 )
 class DoctorDetailView(generics.RetrieveAPIView):
-    queryset = Doctor.objects.all().select_related('user')  # Performance optimization
+    # Optimize with select_related and prefetch_related to avoid N+1 queries
+    queryset = Doctor.objects.all().select_related('user').prefetch_related('availability')
     serializer_class = DoctorSerializer
     permission_classes = [AllowAny]
 
@@ -101,7 +103,8 @@ class DoctorProfileView(APIView):
         if request.user.role != 'doctor':
             return Response({'error': 'Not a doctor.'}, status=status.HTTP_403_FORBIDDEN)
         try:
-            doctor = request.user.doctor_profile
+            # Optimize with select_related
+            doctor = Doctor.objects.select_related('user').get(user=request.user)
         except Doctor.DoesNotExist:
             return Response({'error': 'Doctor profile not found.'}, status=status.HTTP_404_NOT_FOUND)
         return Response(DoctorSerializer(doctor).data)
@@ -110,7 +113,8 @@ class DoctorProfileView(APIView):
         if request.user.role != 'doctor':
             return Response({'error': 'Not a doctor.'}, status=status.HTTP_403_FORBIDDEN)
         try:
-            doctor = request.user.doctor_profile
+            # Optimize with select_related
+            doctor = Doctor.objects.select_related('user').get(user=request.user)
         except Doctor.DoesNotExist:
             return Response({'error': 'Doctor profile not found.'}, status=status.HTTP_404_NOT_FOUND)
         serializer = DoctorProfileUpdateSerializer(doctor, data=request.data, partial=True)
@@ -151,14 +155,16 @@ class DoctorAvailabilityView(APIView):
     def get(self, request):
         if request.user.role != 'doctor':
             return Response({'error': 'Not a doctor.'}, status=status.HTTP_403_FORBIDDEN)
-        doctor = request.user.doctor_profile
+        # Optimize with select_related
+        doctor = Doctor.objects.select_related('user').get(user=request.user)
         slots = DoctorAvailability.objects.filter(doctor=doctor)
         return Response(DoctorAvailabilitySerializer(slots, many=True).data)
 
     def post(self, request):
         if request.user.role != 'doctor':
             return Response({'error': 'Not a doctor.'}, status=status.HTTP_403_FORBIDDEN)
-        doctor = request.user.doctor_profile
+        # Optimize with select_related
+        doctor = Doctor.objects.select_related('user').get(user=request.user)
         serializer = DoctorAvailabilitySerializer(data=request.data)
         if serializer.is_valid():
             serializer.save(doctor=doctor)
@@ -196,7 +202,11 @@ class DoctorAvailabilityDetailView(APIView):
 
     def get_slot(self, pk, user):
         try:
-            return DoctorAvailability.objects.get(pk=pk, doctor__user=user)
+            # Optimize with select_related
+            return DoctorAvailability.objects.select_related(
+                'doctor',
+                'doctor__user'
+            ).get(pk=pk, doctor__user=user)
         except DoctorAvailability.DoesNotExist:
             return None
 
